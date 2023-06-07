@@ -1,0 +1,1 @@
+[{"id":0,"text":"Stuff","options":[{"text":"Thing 1","next":1},{"text":"Thing 2","next":999991}]},{"id":1,"text":"Some other thing.","options":[{"text":"Continue.","next":0},{"text":"DIE.","next":999999}]},{"id":999991,"text":"YOU WIN!!!","options":[]},{"id":999999,"text":"<DEADED>","options":[]}]

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang='en'>
+
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <meta http-equiv='X-UA-Compatible' content='ie=edge'>
+    <title>Dialog Tool</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
+            transition: all 0.2s linear;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            color: white;
+        }
+
+        textarea {
+            width: 85%;
+            display: block;
+            margin: 0 auto;
+            background-color: #333;
+            color: white;
+            margin-top: 1rem;
+        }
+
+        label {
+            width: 85%;
+            display: block;
+            margin: 0 auto;
+            padding: 1rem;
+            cursor: pointer;
+        }
+
+        label::first-line {
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        label input {
+            float: right;
+            width: 50%;
+            font-weight: bold;
+        }
+
+        label:hover {
+            background-color: #333;
+        }
+
+        input {
+            background-color: #333;
+            color: white;
+        }
+
+
+        input,
+        textarea {
+            border: none;
+            border-radius: 12.5px;
+            padding: 0.5rem;
+        }
+
+        button {
+            width: 85%;
+            height: 50px;
+            border: none;
+            border-radius: 12.5px;
+            background-color: gray;
+            color: black;
+            cursor: pointer;
+            display: block;
+            margin: 1rem auto;
+            margin-bottom: 0;
+        }
+
+        button:hover {
+            background-color: white !important;
+            color: black !important;
+        }
+
+        .dialog {
+            border: 3px solid white;
+            margin: 1rem auto;
+            padding: 1rem;
+            border-radius: 2rem;
+        }
+
+        .option {
+            border: 3px solid white;
+            border-radius: 4rem;
+        }
+
+        .btn-box {
+            text-align: center;
+            position: sticky;
+            bottom: 0;
+            background-color: black;
+            border-top: 3px solid white;
+        }
+
+        .btn-box button {
+            margin: 1rem 1rem;
+            width: 20%;
+            display: inline-block;
+        }
+
+        .addOption {
+            background-color: green;
+        }
+
+        .warn {
+            border: 3px solid gold;
+        }
+
+        .option.warn::before {
+            content: 'Next Dialog ID not found!';
+            color: gold;
+            font-weight: bold;
+            display: block;
+            margin: 0.5rem;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+
+        .critical {
+            border: 3px solid crimson;
+        }
+
+        .critical .d-id {
+            color: crimson;
+        }
+
+        .critical .d-id::before {
+            content: 'Duplicate Dialog ID!';
+            color: crimson;
+            font-weight: bold;
+            display: block;
+            margin: 0.5rem;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+
+        #import {
+            background-color: green;
+        }
+
+        #export {
+            background-color: darkorange;
+        }
+
+        #newDialog {
+            background-color: forestgreen;
+            width: 35%;
+        }
+
+        #sort {
+            background-color: goldenrod;
+        }
+
+        @media screen and (min-width: 1024px) {
+            .dialog {
+                width: calc(50% - 2rem);
+                display: inline-block;
+                margin: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Dialog Tool</h1>
+    <div id='app'>
+        <label for="existing" id="existingWrap">
+            <h3>Existing JSON</h3>
+            <textarea name="existing" id="existing" cols="30" rows="10"></textarea>
+        </label>
+        <button id="import">Import</button>
+        <div id="dialogs">
+
+        </div>
+        <div class="btn-box">
+            <button id="newDialog">New Dialog</button>
+            <button id="sort">Sort</button>
+            <button id="export">Export</button>
+        </div>
+    </div>
+    <script>
+        let appData = [];
+        let debugHandler = {
+            set: (target, prop, value) => {
+                target[prop] = value;
+                // console.log('Set', target, prop, value);
+                return true;
+            },
+            get: (target, prop) => {
+                // console.log('Get', target, prop);
+                return target[prop];
+            }
+        };
+        let appProxy = new Proxy(appData, debugHandler);
+        const dialogs = document.getElementById('dialogs');
+        const existing = document.getElementById('existing');
+        const existingWrap = document.getElementById('existingWrap');
+        const importBtn = document.getElementById('import');
+        const exportBtn = document.getElementById('export');
+        const newDialog = document.getElementById('newDialog');
+        const sortBtn = document.getElementById('sort');
+
+        function renderDialog(dialog) {
+            let wrap = document.createElement('div');
+            wrap.classList.add('dialog');
+            wrap.dataset.dialogId = dialog.id;
+
+            let idWrap = document.createElement('label');
+            idWrap.innerText = 'Dialog ID';
+            idWrap.classList.add('d-id');
+            let id = document.createElement('input');
+            id.setAttribute('type', 'number');
+            id.setAttribute('placeholder', 'ID');
+            id.setAttribute('max', 9999);
+            id.setAttribute('min', 0);
+            id.value = dialog.id;
+            id.addEventListener('change', () => {
+                appProxy.find(d => d.id === dialog.id).id = parseInt(id.value);
+                wrap.dataset.dialogId = parseInt(id.value);
+                validate();
+            });
+            idWrap.appendChild(id);
+
+            let textWrap = document.createElement('label');
+            textWrap.innerText = 'Dialog Text';
+            let text = document.createElement('textarea');
+            text.setAttribute('placeholder', 'Dialog Text...');
+            text.value = dialog.text;
+            text.addEventListener('change', () => {
+                appProxy.find(d => d.id === dialog.id).text = text.value;
+                validate();
+            });
+            textWrap.appendChild(text);
+
+            let options = document.createElement('div');
+            options.classList.add('options');
+            dialog.options.forEach(option => {
+                options.appendChild(renderOption(option, dialog.id));
+            });
+
+            let addOption = document.createElement('button');
+            addOption.classList.add('addOption');
+            addOption.innerText = 'Add Option';
+            addOption.addEventListener('click', () => {
+                appProxy.find(d => d.id === dialog.id).options.push({
+                    text: '',
+                    next: 0
+                });
+                options.appendChild(renderOption({
+                    text: '',
+                    next: 0
+                }, dialog.id));
+            });
+
+            wrap.appendChild(idWrap);
+            wrap.appendChild(textWrap);
+            wrap.appendChild(options);
+            wrap.appendChild(addOption);
+            return wrap;
+        }
+
+        function renderOption(option, dialogId) {
+            let wrap = document.createElement('div');
+            wrap.classList.add('option');
+            wrap.dataset.dialogId = dialogId;
+            let textWrap = document.createElement('label');
+            textWrap.innerText = 'Option Text';
+            let text = document.createElement('textarea');
+            text.setAttribute('placeholder', 'Option Text...');
+            text.addEventListener('change', () => {
+                appProxy.find(d => d.id === dialogId).options.find(o => o.text === option.text).text = text.value;
+                validate();
+            });
+            text.value = option.text;
+            textWrap.appendChild(text);
+
+            let nextWrap = document.createElement('label');
+            nextWrap.innerText = 'Next Dialog ID';
+            let next = document.createElement('input');
+            next.setAttribute('type', 'number');
+            next.setAttribute('placeholder', 'Next Dialog ID');
+            next.setAttribute('min', 0);
+            next.value = option.next;
+            next.addEventListener('change', () => {
+                appProxy.find(d => d.id === dialogId).options.find(o => o.text === text.value).next = parseInt(next.value);
+                validate();
+            });
+            nextWrap.appendChild(next);
+
+            wrap.appendChild(textWrap);
+            wrap.appendChild(nextWrap);
+            return wrap;
+        }
+
+        function exportDialog() {
+            appProxy = appProxy.sort((a, b) => a.id - b.id);
+            if (validate()) {
+                console.log(JSON.stringify(appProxy));
+                window.open("data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appProxy)), '_blank');
+            }
+
+        }
+
+        function validate() {
+            if (appProxy.length === 0) {
+                alert('No dialogs to export!');
+                return false;
+            }
+            document.querySelectorAll('.critical').forEach(el => el.classList.remove('critical'));
+            document.querySelectorAll('.warn').forEach(el => el.classList.remove('warn'));
+
+            let map = appProxy.map((item) => { return item.id });
+            let duplicates = map.filter((item, index) => map.indexOf(item) != index);
+            if (duplicates.length > 0) {
+                alert('Duplicate Dialog IDs found!');
+                duplicates.forEach(id => {
+                    document.querySelectorAll(`[data-dialog-id="${id}"]`).forEach(el => {
+                        el.classList.add('critical');
+                    });
+                });
+                return false;
+            }
+            for (let dialog of appProxy) {
+                let warning = false;
+                let critical = false;
+                for (let option of dialog.options) {
+                    if (appProxy.find(d => d.id === option.next)) {
+                    } else {
+                        document.querySelectorAll(`[data-dialog-id="${dialog.id}"]`).forEach(el => {
+                            if (el.querySelector('input').value === option.next.toString()) {
+                                el.classList.add('warn');
+                                warning = true;
+                            }
+                        });
+                    }
+                }
+                if (warning) {
+                    dialogs.querySelector(`.dialog[data-dialog-id="${dialog.id}"]`).classList.add('warn');
+                }
+            }
+
+            return true;
+        }
+
+        importBtn.addEventListener('click', () => {
+            appData = JSON.parse(existing.value);
+            existingWrap.style.display = 'none';
+            importBtn.style.display = 'none';
+            appProxy = new Proxy(appData, debugHandler);
+            appProxy.forEach(dialog => {
+                dialogs.appendChild(renderDialog(dialog));
+            });
+
+            validate();
+        });
+
+        newDialog.addEventListener('click', () => {
+            existingWrap.style.display = 'none';
+            importBtn.style.display = 'none';
+            let dID = 0;
+            let ids = appProxy.map(d => d.id);
+            while (ids.includes(dID)) {
+                dID++;
+            }
+
+            let dialog = {
+                id: dID,
+                text: '',
+                options: []
+            };
+            appProxy.push(dialog);
+            dialogs.appendChild(renderDialog(dialog));
+        });
+
+        sortBtn.addEventListener('click', () => {
+            appProxy = appProxy.sort((a, b) => a.id - b.id);
+            dialogs.innerHTML = '';
+            appProxy.forEach(dialog => {
+                dialogs.appendChild(renderDialog(dialog));
+            });
+            validate();
+        });
+
+        exportBtn.addEventListener('click', exportDialog);
+
+
+    </script>
+</body>
+
+</html>
